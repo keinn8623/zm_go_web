@@ -1,0 +1,25 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* 题目富文本中的表格：居中展示、细边框、单元格留白 */
+.rich-content table {
+  border-collapse: collapse;
+  margin: 8px auto;
+  border: 1px solid #d0d7de;
+}
+
+.rich-content table td,
+.rich-content table th {
+  border: 1px solid #d0d7de;
+  padding: 4px 10px;
+  text-align: center;
+}
