@@ -3,6 +3,7 @@ import AppLayout from './pages/AppLayout'
 import Crawler from './pages/Crawler'
 import ErrQuestions from './pages/ErrQuestions'
 import Login from './pages/Login'
+import NotFound from './pages/NotFound'
 import ScoreList from './pages/ScoreList'
 import TextQuestions from './pages/TextQuestions'
 import UserList from './pages/UserList'
@@ -20,9 +21,11 @@ export default function App() {
             <Route path="err-questions" element={<ErrQuestions />} />
             <Route path="crawler" element={<Crawler />} />
             <Route path="users" element={<UserList />} />
+            {/* 登录态内未匹配路径：404 页面（未登录时被 RequireAuth 拦到登录页） */}
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/*<Route path="/score" element={<Navigate to="/score/getUserScoreDataList" replace />} />*/}
       </Routes>
     </BrowserRouter>
   )
