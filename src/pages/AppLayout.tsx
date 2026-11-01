@@ -37,7 +37,7 @@ export default function AppLayout() {
     <Layout style={{ height: '100%' }}>
       <Sider>
         <div style={{ color: '#fff', textAlign: 'center', padding: 16, fontSize: 16 }}>
-          zm 教育考试系统
+          卓鸣考试管理
         </div>
         <Menu
           theme="dark"

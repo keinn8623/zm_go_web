@@ -62,7 +62,7 @@ export default function Login() {
     >
       <Card style={{ width: 400 }}>
         <Typography.Title level={3} style={{ textAlign: 'center' }}>
-          zm 教育考试系统
+          卓鸣考试管理
         </Typography.Title>
         <Form<LoginForm>
           onFinish={onFinish}
