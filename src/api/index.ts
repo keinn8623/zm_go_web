@@ -10,6 +10,7 @@ import type {
   StudentErrQues,
   TextFieldCheckResult,
   UpdateQuestionParams,
+  UpdateUserParams,
   UploadExcelResult,
   User,
 } from './types'
@@ -38,6 +39,19 @@ export function batchCreateUsers(file: File) {
   const formData = new FormData()
   formData.append('user_excel', file)
   return request.post<BatchCreateUsersResult>('/users/batchCreateUsers', formData)
+}
+
+/** 更新用户：POST /users/updateUser?id=xxx（GORM Updates 只更新非零字段，password 留空不修改） */
+export function updateUser(id: number, payload: UpdateUserParams) {
+  return request.post<string>('/users/updateUser', payload, { params: { id } })
+}
+
+/** 删除用户（软删除）：GET /users/deleteUser?id=xxx 或 ?id=1,2,3，支持单个或多个 id */
+export function deleteUser(ids: number | number[]) {
+  const list = Array.isArray(ids) ? ids : [ids]
+  return request.get<{ deleted: number; ids: number[] }>('/users/deleteUser', {
+    params: { id: list.join(',') },
+  })
 }
 
 // ---------- 成绩 ----------

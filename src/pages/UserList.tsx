@@ -1,10 +1,24 @@
-import { UploadOutlined } from '@ant-design/icons'
-import { Button, Form, Input, message, Modal, Select, Space, Table, Tag, Typography, Upload } from 'antd'
+import { DeleteOutlined, EditOutlined, UploadOutlined } from '@ant-design/icons'
+import {
+  Button,
+  Form,
+  Input,
+  message,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
-import { batchCreateUsers, createUser, getUserList } from '../api'
-import type { BatchCreateUsersResult, CreateUserParams, User } from '../api/types'
+import type { Key } from 'react'
+import { batchCreateUsers, createUser, deleteUser, getUserList, updateUser } from '../api'
+import type { BatchCreateUsersResult, CreateUserParams, UpdateUserParams, User } from '../api/types'
 
 const columns: ColumnsType<User> = [
   { title: 'ID', dataIndex: 'id', width: 80 },
@@ -48,6 +62,13 @@ export default function UserList() {
   const [importing, setImporting] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [importResult, setImportResult] = useState<BatchCreateUsersResult | null>(null)
+  // 勾选行：勾选后出现批量删除按钮
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
+  const [batchDeleting, setBatchDeleting] = useState(false)
+  // 手动修改单个用户
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editForm] = Form.useForm<UpdateUserParams>()
 
   // 按登录用户角色控制可见范围：admin 可查看全部用户，teacher 仅可查看 student 角色
   const raw = localStorage.getItem('user')
@@ -92,6 +113,92 @@ export default function UserList() {
     }
   }
 
+  // ---------- 勾选后的行操作 ----------
+
+  const openEdit = (user: User) => {
+    setEditingUser(user)
+    editForm.setFieldsValue({
+      username: user.username,
+      phone: user.phone,
+      campus: user.campus,
+      role: user.role,
+    })
+  }
+
+  const onEditSubmit = async (values: UpdateUserParams) => {
+    if (!editingUser) return
+    setSavingEdit(true)
+    try {
+      await updateUser(editingUser.id, values)
+      message.success('修改成功')
+      setEditingUser(null)
+      fetchList()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '修改失败')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const onDelete = async (user: User) => {
+    try {
+      await deleteUser(user.id)
+      message.success('删除成功')
+      // 被删行移出勾选，避免残留
+      setSelectedRowKeys((keys) => keys.filter((k) => k !== user.id))
+      fetchList()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '删除失败')
+    }
+  }
+
+  // 批量删除：一次请求把多个 id 交给后端，后端软删除并返回实际删除的 id 列表
+  const onBatchDelete = async () => {
+    setBatchDeleting(true)
+    try {
+      const result = await deleteUser(selectedRowKeys.map(Number))
+      const failed = selectedRowKeys.length - result.deleted
+      message.success(
+        `已删除 ${result.deleted} 个用户${failed > 0 ? `，${failed} 个未删除（不存在或已删除）` : ''}`,
+      )
+      setSelectedRowKeys([])
+      fetchList()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '批量删除失败')
+    } finally {
+      setBatchDeleting(false)
+    }
+  }
+
+  // 操作列：放在创建时间列之后，每行固定展示修改/删除图标
+  const actionColumn: ColumnsType<User> = [
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_, record) => (
+        <Space size="middle">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            aria-label="修改"
+            onClick={() => openEdit(record)}
+          />
+          <Popconfirm
+            title="确认删除该用户？"
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => onDelete(record)}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} aria-label="删除" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
   // 上传 Excel 批量导入用户：成功后弹窗展示汇总与失败明细，有成功数据则刷新列表
   const handleImport = async (file: File) => {
     setImporting(true)
@@ -135,11 +242,34 @@ export default function UserList() {
           </Space>
         </div>
       )}
+      {selectedRowKeys.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <Typography.Text>已选 {selectedRowKeys.length} 个用户</Typography.Text>
+            <Popconfirm
+              title={`确认删除选中的 ${selectedRowKeys.length} 个用户？`}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={onBatchDelete}
+            >
+              <Button danger icon={<DeleteOutlined />} loading={batchDeleting}>
+                批量删除
+              </Button>
+            </Popconfirm>
+            <Button onClick={() => setSelectedRowKeys([])}>取消选择</Button>
+          </Space>
+        </div>
+      )}
       <Table<User>
         rowKey="id"
-        columns={columns}
+        columns={[...columns, ...actionColumn]}
         dataSource={data}
         loading={loading}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: (keys) => setSelectedRowKeys(keys),
+        }}
         pagination={{
           // 用 defaultPageSize 而非 pageSize：传静态 pageSize 会被当作受控值，
           // 切换每页条数后又被覆盖回去，导致只能停在 10 条/页
@@ -206,6 +336,45 @@ export default function UserList() {
             ]}
           >
             <Input.Password placeholder="请再次输入密码" />
+          </Form.Item>
+          <Form.Item name="campus" label="校区">
+            <Input placeholder="请输入校区" />
+          </Form.Item>
+          <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
+            <Select options={roleOptions} placeholder="请选择角色" />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title={`修改用户：${editingUser?.username ?? ''}`}
+        open={!!editingUser}
+        confirmLoading={savingEdit}
+        onOk={() => editForm.submit()}
+        onCancel={() => {
+          setEditingUser(null)
+          editForm.resetFields()
+        }}
+      >
+        <Form<UpdateUserParams> form={editForm} layout="vertical" onFinish={onEditSubmit}>
+          <Form.Item
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: '请输入用户名' }]}
+          >
+            <Input placeholder="请输入用户名" />
+          </Form.Item>
+          <Form.Item
+            name="phone"
+            label="手机号"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            ]}
+          >
+            <Input placeholder="请输入手机号" maxLength={11} />
+          </Form.Item>
+          <Form.Item name="password" label="密码">
+            <Input.Password placeholder="留空则不修改密码" />
           </Form.Item>
           <Form.Item name="campus" label="校区">
             <Input placeholder="请输入校区" />

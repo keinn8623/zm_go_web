@@ -36,6 +36,15 @@ export interface CreateUserParams {
   role?: string
 }
 
+/** 更新用户入参（model.UUser）；password 留空表示不修改密码（后端 GORM 只更新非零字段） */
+export interface UpdateUserParams {
+  username: string
+  phone: string
+  password?: string
+  campus?: string
+  role: string
+}
+
 /** 成绩查询条件（model.QueryScoreCondition） */
 export interface QueryScoreCondition {
   username?: string
