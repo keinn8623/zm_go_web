@@ -3,7 +3,7 @@ import { Button, Card, Form, Input, message, Space, Table, Tag, Typography } fro
 import type { ColumnsType } from 'antd/es/table'
 import { useState } from 'react'
 import type { Key } from 'react'
-import { exportErrSheet, getClassErrQuestions } from '../api'
+import { exportErrSheet, exportScoreReport, getClassErrQuestions } from '../api'
 import type { StudentErrQues } from '../api/types'
 import QuestionBody from '../components/QuestionBody'
 
@@ -39,8 +39,8 @@ export default function ErrQuestions() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<StudentErrQues[]>([])
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
-  // 导出中标记：null=空闲，'all'=完整错题卷，'fansan'=仅举一反三
-  const [exporting, setExporting] = useState<'all' | 'fansan' | null>(null)
+  // 导出中标记：null=空闲，'all'=完整错题卷，'fansan'=仅举一反三，'score'=成绩报告
+  const [exporting, setExporting] = useState<'all' | 'fansan' | 'score' | null>(null)
 
   const search = async (values: ClassCondition) => {
     setLoading(true)
@@ -68,10 +68,24 @@ export default function ErrQuestions() {
     }
   }
 
+  // 把 blob 触发为浏览器下载
+  const downloadZip = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 当前勾选的学生行
+  const selectedStudents = () =>
+    data.filter((d) => selectedRowKeys.includes(`${d.teacher}-${d.student_name}`))
+
   // 导出勾选学生的错题卷（zip 内每个学生两份 HTML：学生版 / 带答案版）
   // onlyFanSan=true 时只导出举一反三错题
   const handleExport = async (onlyFanSan: boolean) => {
-    const students = data.filter((d) => selectedRowKeys.includes(`${d.teacher}-${d.student_name}`))
+    const students = selectedStudents()
     if (students.length === 0) return
     setExporting(onlyFanSan ? 'fansan' : 'all')
     try {
@@ -83,16 +97,36 @@ export default function ErrQuestions() {
         students: students.map((s) => s.student_name),
         onlyFanSan,
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
       const now = new Date()
       const dateStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
       const label = onlyFanSan ? '-举一反三' : ''
-      a.href = url
-      a.download = `错题报告${label}-${textName}-${dateStr}.zip`
-      a.click()
-      URL.revokeObjectURL(url)
+      downloadZip(blob, `错题报告${label}-${textName}-${dateStr}.zip`)
       message.success('导出成功')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '导出失败')
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  // 导出勾选学生的成绩分析报告（每人一份 A4 PDF，打包 zip）
+  const handleExportScore = async () => {
+    const students = selectedStudents()
+    if (students.length === 0) return
+    setExporting('score')
+    try {
+      const values = form.getFieldsValue()
+      const textName = values.text_name ?? ''
+      const teacher = values.teacher ?? ''
+      const blob = await exportScoreReport({
+        textName,
+        teacher,
+        students: students.map((s) => s.student_name),
+      })
+      const now = new Date()
+      const dateStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+      downloadZip(blob, `成绩分析报告-${textName}-${dateStr}.zip`)
+      message.success('成绩报告导出成功')
     } catch (e) {
       message.error(e instanceof Error ? e.message : '导出失败')
     } finally {
@@ -124,7 +158,7 @@ export default function ErrQuestions() {
             type="primary"
             icon={<DownloadOutlined />}
             loading={exporting === 'all'}
-            disabled={exporting === 'fansan'}
+            disabled={exporting !== null}
             onClick={() => handleExport(false)}
           >
             导出错题报告
@@ -132,10 +166,18 @@ export default function ErrQuestions() {
           <Button
             icon={<DownloadOutlined />}
             loading={exporting === 'fansan'}
-            disabled={exporting === 'all'}
+            disabled={exporting !== null}
             onClick={() => handleExport(true)}
           >
             导出举一反三错题
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={exporting === 'score'}
+            disabled={exporting !== null}
+            onClick={handleExportScore}
+          >
+            导出成绩报告
           </Button>
         </Space>
       )}

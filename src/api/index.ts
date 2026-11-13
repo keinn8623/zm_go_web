@@ -130,6 +130,18 @@ export function exportErrSheet(params: ExportErrSheetParams) {
   })
 }
 
+/**
+ * 导出成绩分析报告：POST /score/exportScoreReport
+ * 后端以 scoreReport.ts 为模板生成 A4 PDF（数据来自成绩分析接口），打包 zip 返回。
+ * 只导出 students 名单内的学生；超时放宽到 10 分钟。
+ */
+export function exportScoreReport(params: { textName: string; teacher: string; students: string[] }) {
+  return request.post<Blob>('/score/exportScoreReport', params, {
+    responseType: 'blob',
+    timeout: 600000,
+  })
+}
+
 // ---------- 爬虫抓题 ----------
 
 /** 爬虫抓题：GET /score/testCrawler?clientToken=xxx&cookieStr=xxx&paperID=xxx（抓取外部题库并入库） */
