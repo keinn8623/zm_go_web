@@ -11,6 +11,7 @@ export default defineConfig({
       '/auth': 'http://localhost:8080',
       '/users': 'http://localhost:8080',
       '/score': 'http://localhost:8080',
+      '/analyze': 'http://localhost:8080',
       '/output': 'http://localhost:8080',
       '/migrate': 'http://localhost:8080',
     },
