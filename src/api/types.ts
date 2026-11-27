@@ -124,6 +124,24 @@ export interface QueryQueResult {
   que_list?: QuestionList[] | null
 }
 
+/** 试卷（model.Paper，GET /analyze/paperList；后端 gorm.Model 无 json tag，字段名原样透传） */
+export interface Paper {
+  ID: number
+  /** 试卷唯一 ID（爬虫侧 paperID） */
+  PaperID: string
+  /** 试卷名称 */
+  Name: string
+  UpdatedAt: string
+  CreatedAt?: string
+  deleted?: number
+}
+
+/** 试卷列表返回（GET /analyze/paperList，data 内层为列表 + total） */
+export interface PaperListResult {
+  data: Paper[]
+  total: number
+}
+
 /** 手动修改单题入参（POST /score/updateQuestion） */
 export interface UpdateQuestionParams {
   paperName: string

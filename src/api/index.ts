@@ -4,6 +4,7 @@ import type {
   CheckJob,
   CreateUserParams,
   LoginResult,
+  PaperListResult,
   QueryQueResult,
   QueryScoreCondition,
   ScoreQueryResult,
@@ -85,6 +86,17 @@ export function getTextNameList(textName: string) {
   return request.get<string[]>('/score/getTextNameList', {
     params: { textName },
   })
+}
+
+/**
+ * 试卷列表：GET /analyze/paperList?page=xxx&size=xxx
+ * 无数据时后端返回 204 空响应体（response.NoContent），归一化为空列表。
+ */
+export async function getPaperList(page: number, size: number) {
+  const result = await request.get<PaperListResult | ''>('/analyze/paperList', {
+    params: { page, size },
+  })
+  return result && typeof result === 'object' ? result : { data: [], total: 0 }
 }
 
 /** 手动修改单题：POST /score/updateQuestion（写库并失效 Redis 缓存） */
