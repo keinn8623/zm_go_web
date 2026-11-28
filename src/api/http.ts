@@ -33,6 +33,17 @@ http.interceptors.response.use(
   },
   (error: AxiosError<ApiResponse>) => {
     const raw = error.response?.data
+    const status = error.response?.status
+    // 401：会话失效，清空本地登录态并跳转登录页。
+    // 必须在 blob 分支之前处理：blob 错误体解析会提前 return，导致 401 不清理会话。
+    if (status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      localStorage.removeItem('expiresAt')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
     // blob 响应（如错题卷导出）的错误体是 JSON 文本，解析出 msg 再抛出
     if (raw instanceof Blob) {
       return raw.text().then((text) => {
@@ -45,12 +56,6 @@ http.interceptors.response.use(
       })
     }
     const msg = raw?.msg || error.message || '网络错误'
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      localStorage.removeItem('expiresAt')
-      window.location.href = '/login'
-    }
     return Promise.reject(new Error(msg))
   },
 )

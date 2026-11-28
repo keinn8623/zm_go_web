@@ -11,6 +11,8 @@ export interface ApiResponse<T = unknown> {
 export interface LoginResult {
   token: string
   user: User
+  /** token 过期时间（Unix 毫秒），与 JWT exp 一致，前端以服务端为准 */
+  expiresAt: number
 }
 
 /** 用户（model.User） */
@@ -233,4 +235,25 @@ export interface CheckJob {
   /** 全局错误（如整体超时） */
   err: string
   created_at: string
+}
+
+/** PDF 异步导出任务状态（model.PDFJobState，GET /score/exportProgress） */
+export interface PdfJobState {
+  taskId: string
+  /** 提交人用户 ID（后端校验归属） */
+  userId: number
+  type: 'errSheet' | 'scoreReport'
+  status: 'queued' | 'running' | 'done' | 'error'
+  /** 学生总数（running 后才有） */
+  total: number
+  /** 已完成学生数 */
+  done: number
+  /** 完成后的 zip 文件名（下载时优先取它） */
+  fileName?: string
+  /** 失败原因 */
+  error?: string
+  /** 完成后的下载地址 */
+  downloadUrl?: string
+  createdAt: number
+  updatedAt: number
 }

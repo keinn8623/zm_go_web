@@ -34,8 +34,10 @@ export default function App() {
 /** 路由守卫：未登录（无 token）或登录态过期时跳转登录页 */
 function RequireAuth() {
   const token = localStorage.getItem('token')
-  // 登录态 6 小时过期：过期则清除缓存并回到登录页
-  if (token && Number(localStorage.getItem('expiresAt')) <= Date.now()) {
+  // 登录态过期（expiresAt 为服务端返回的毫秒时间戳）：过期则清除缓存并回到登录页。
+  // expiresAt 缺失/非法（NaN）时不在此处强制登出，交给接口 401 兜底处理。
+  const expiresAt = Number(localStorage.getItem('expiresAt'))
+  if (token && Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('expiresAt')

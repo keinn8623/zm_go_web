@@ -75,6 +75,7 @@ export default function AppLayout() {
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('expiresAt')
     navigate('/login')
   }
 

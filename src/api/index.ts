@@ -5,6 +5,7 @@ import type {
   CreateUserParams,
   LoginResult,
   PaperListResult,
+  PdfJobState,
   QueryQueResult,
   QueryScoreCondition,
   ScoreQueryResult,
@@ -18,9 +19,9 @@ import type {
 
 // ---------- 认证 ----------
 
-/** 登录：POST /auth/login */
-export function login(phone: string, password: string) {
-  return request.post<LoginResult>('/auth/login', { phone, password })
+/** 登录：POST /auth/login；remember=true 时服务端签发 7 天 token（默认 6 小时） */
+export function login(phone: string, password: string, remember = false) {
+  return request.post<LoginResult>('/auth/login', { phone, password, remember })
 }
 
 // ---------- 用户 ----------
@@ -149,6 +150,39 @@ export function exportErrSheet(params: ExportErrSheetParams) {
  */
 export function exportScoreReport(params: { textName: string; teacher: string; students: string[] }) {
   return request.post<Blob>('/score/exportScoreReport', params, {
+    responseType: 'blob',
+    timeout: 600000,
+  })
+}
+
+// ---------- PDF 异步导出（提交 → 轮询 → 下载） ----------
+
+/**
+ * 异步导出错题卷：POST /score/exportErrSheetAsync
+ * 立即返回任务 ID（202），由后端 RabbitMQ 单消费者串行渲染（防 OOM），
+ * 前端轮询 exportProgress 直到 done 后走 exportDownload 下载 zip。
+ */
+export function submitExportErrSheet(params: ExportErrSheetParams) {
+  return request.post<{ taskId: string; status: string }>('/score/exportErrSheetAsync', params)
+}
+
+/** 异步导出成绩分析报告：POST /score/exportScoreReportAsync（students 可空 = 全班） */
+export function submitExportScoreReport(params: { textName: string; teacher: string; students?: string[] }) {
+  return request.post<{ taskId: string; status: string }>('/score/exportScoreReportAsync', params)
+}
+
+/** 查询导出进度：GET /score/exportProgress?taskId=xxx（约 2s 轮询一次） */
+export function getExportProgress(taskId: string) {
+  return request.get<PdfJobState>('/score/exportProgress', {
+    params: { taskId },
+    timeout: 30000,
+  })
+}
+
+/** 下载导出产物：GET /score/exportDownload?taskId=xxx（大 zip 放宽到 10 分钟） */
+export function downloadExport(taskId: string) {
+  return request.get<Blob>('/score/exportDownload', {
+    params: { taskId },
     responseType: 'blob',
     timeout: 600000,
   })

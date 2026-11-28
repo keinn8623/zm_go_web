@@ -29,12 +29,17 @@ export default function Login() {
   const onFinish = async (values: LoginForm) => {
     setLoading(true)
     try {
-      const result = await login(values.phone, values.password)
+      const result = await login(values.phone, values.password, values.remember)
       localStorage.setItem('token', result.token)
       localStorage.setItem('user', JSON.stringify(result.user))
-      // 记录过期时间：记住用户 7 天，否则 6 小时后登录态失效
+      // 记录过期时间：以服务端返回的 expiresAt 为准（与 JWT exp 一致）；
+      // 服务端未返回时回退本地估算（记住用户 7 天，否则 6 小时）
       const expiresIn = values.remember ? REMEMBER_EXPIRES_MS : LOGIN_EXPIRES_MS
-      localStorage.setItem('expiresAt', String(Date.now() + expiresIn))
+      const expiresAt =
+        Number.isFinite(result.expiresAt) && result.expiresAt > 0
+          ? result.expiresAt
+          : Date.now() + expiresIn
+      localStorage.setItem('expiresAt', String(expiresAt))
       // 记住用户：登录成功后保存手机号；未勾选则清除
       if (values.remember) {
         localStorage.setItem(REMEMBER_PHONE_KEY, values.phone)

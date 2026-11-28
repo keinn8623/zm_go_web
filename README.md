@@ -18,18 +18,21 @@ npm run dev    # 开发模式，默认 http://localhost:5173
 npm run build  # 生产构建，产物在 dist/
 ```
 
-> 开发环境已配置代理：`/auth`、`/users`、`/score`、`/output`、`/migrate` 均转发到
+> 开发环境已配置代理：`/auth`、`/users`、`/score`、`/analyze`、`/output`、`/migrate` 均转发到
 > `http://localhost:8080`（见 `vite.config.ts`），无需处理跨域。
+> `/users`、`/score` 同时是 SPA 路由前缀（`/users`、`/scores`），浏览器文档导航
+> （`Accept: text/html`）已配置 bypass 放行给 SPA fallback，避免刷新页面被代理到后端
+> 触发 401（axios 请求不受影响）。
 > 启动前请先运行后端服务（`goproject_zm` 目录下 `go run main.go`）。
 
 ## 页面与后端接口对应关系
 
 | 页面 | 路由 | 后端接口 |
 | ---- | ---- | ---- |
-| 登录 | `/login` | `POST /auth/login` |
+| 登录 | `/login` | `POST /auth/login`（`remember` 控制 token 有效期：6 小时 / 7 天） |
 | 成绩查询 | `/scores` | `POST /score/getUserScoreDataList`、`POST /score/uploadExcel`（Excel 导入） |
 | 题目查询 | `/questions` | `GET /score/getTextQuestions?paperName=` |
-| 错题管理 | `/err-questions` | `GET /score/getClassTest`（后端当前为测试实现） |
+| 错题管理 | `/err-questions` | `GET /score/getClassTest`；导出走异步任务：`POST /score/exportErrSheetAsync` → `GET /score/exportProgress` → `GET /score/exportDownload` |
 | 用户列表 | `/users` | `GET /users/getUserList` |
 
 ## 项目结构
@@ -54,14 +57,14 @@ npm run build  # 生产构建，产物在 dist/
 
 ## 约定
 
-- 登录成功后 `token` 与 `user` 存于 `localStorage`，axios 请求拦截器自动携带
-  `Authorization: Bearer <token>`；401 时自动清除并跳转登录页
+- 登录成功后 `token`、`user`、`expiresAt` 存于 `localStorage`（`expiresAt` 以服务端返回
+  为准，路由守卫据此判断登录态过期）；axios 请求拦截器自动携带
+  `Authorization: Bearer <token>`；401 时自动清除登录态并跳转登录页
 - 后端统一响应 `{code, msg, data}`：`code=0` 时拦截器直接返回 `data`，
   否则抛出带 `msg` 的 Error；`uploadExcel` / `testOCR` 等非统一结构接口原样透传
 - 后端新增接口时：在 `src/api/types.ts` 补类型 → `src/api/index.ts` 加函数 → 页面调用
 
 ## 待办
 
-- 错题管理页目前对接的是后端测试接口（mock 数据），后端完善后替换为正式接口
 - 登录页未对接注册（`POST /users/createUser`），可按需补充
 - antd 全量引入导致首包较大（约 1.1MB），后续可配置按需加载或代码分割
